@@ -50,9 +50,7 @@ class Profile(models.Model):
             profiles.append(profile)
 
         Profile.objects.bulk_create(profiles)  
-
-   
-          
+ 
     
 
 
@@ -127,8 +125,24 @@ class Author(models.Model):
 
         return [author.author_related.all()[0].title for author in authors if author.name[-1].lower() == 'a']
     
+    def get_profile_details(self, author_name):
+        author = Author.objects.get(name=author_name.lower())
+        
+        p = author.profile
+        return [p.slug, p.username, p.email, p.phone, p.address]
+        
+    def get_author_books(self):
+        authors = Author.objects.all()
+        
+        ans = {author.name : [x.title for x in author.author_related.all()] for author in authors}
+        
+        return ans
     
-
+    def get_books_except(self, author_name):
+        authors = Author.objects.exclude(name = author_name)
+        
+        ans = [x.title for author in authors for x in author.author_related.all()]
+        return ans
 
 class Publisher(models.Model):
     
@@ -174,8 +188,52 @@ class Publisher(models.Model):
 
         Publisher.objects.bulk_create(publishers)
 
-
+    @classmethod
+    def get_publisher_book(self, publisher_name):
+        
+        publisher_data = Publisher.objects.all()
+        ans = []
+        for publisher in publisher_data:
+            if publisher.name == publisher_name:
+                book = publisher.publisher_related.all()
+                for x in book:
+                    ans.append(x.title)
+                
+        return ans
     
+    @classmethod
+    def get_books(self, publisher_name):
+        publishers = Publisher.objects.filter(name=publisher_name)
+        
+        ans = set()
+        for publisher in publishers:
+            book = publisher.publisher_related.all()
+            for x in book:
+                ans.add(x.title)
+                
+        return ans
+    
+    def get_publisher_books(self, publisher_website):
+        publisher = Publisher.objects.get(website=publisher_website)
+        
+        ans = set()
+        book = publisher.publisher_related.all()
+        for x in book:
+            ans.add(x.title)
+                
+        return ans
+    
+    def get_all_publishers_books(self, input_list):
+        
+        ans = set()
+        for publisher_name in input_list:
+            publishers = Publisher.objects.filter(name=publisher_name)            
+            for publisher in publishers:
+                book = publisher.publisher_related.all()
+                for x in book:
+                    ans.add(x.title)
+                
+        return list(ans)
 
 
 class Book(models.Model):
@@ -183,7 +241,7 @@ class Book(models.Model):
     slug = models.SlugField()
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="author_related")
     title = models.CharField(max_length=255)
-    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE)
+    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name="publisher_related")
     date_of_pub = models.DateTimeField(verbose_name="Published Date")
 
     def __str__(self):
@@ -231,6 +289,19 @@ class Book(models.Model):
 
         ans = [book.title for book in books if book.date_of_pub.year == input_year]
         return ans
+    
+    def get_status(self, *args):
+        book, created = Book.objects.get_or_create(
+            slug=args[0],
+            author=args[1],
+            title = args[2],
+            publisher = args[3],
+            date_of_pub = args[4]
+        )
+        
+        return [book, created]
+    
+    
         
 
 
