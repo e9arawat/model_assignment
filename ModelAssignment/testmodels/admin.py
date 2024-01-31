@@ -15,3 +15,11 @@ class AuthorAdmin(admin.ModelAdmin):
 @admin.register(Publisher)
 class PublisherAdmin(admin.ModelAdmin):
     list_display = ['slug', 'name', 'website', 'email', 'address']
+
+@admin.register(Book)
+class AdminBook(admin.ModelAdmin):
+    list_display = ['slug', 'author', 'title', 'publisher', 'date_of_pub']
+
+@admin.register(Collection)
+class AdminCollection(admin.ModelAdmin):
+    list_display = ['slug', 'name', 'get_books']
