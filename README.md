@@ -1,3 +1,24 @@
+## Steps to install
+
+**clone the repository**
+
+    git clone https://github.com/e9arawat/lesson037.git
+
+**Go inside the project**
+
+    cd model_assignment/ModelAssignment
+
+**Install the requirement.txt files**
+
+    pip install requirement.txt
+
+**Run the python shell**
+
+    python manage.py shell
+
+**Run the mehtods**
+
+
 
 ## Models Assignment
 
