@@ -18,7 +18,7 @@ class PublisherAdmin(admin.ModelAdmin):
 
 @admin.register(Book)
 class AdminBook(admin.ModelAdmin):
-    list_display = ['slug', 'author', 'title', 'publisher', 'date_of_pub', 'is_deleted']
+    list_display = ['slug', 'author', 'title', 'publisher', 'date_of_pub', 'is_deleted', 'genre']
 
 @admin.register(Collection)
 class AdminCollection(admin.ModelAdmin):

@@ -11,12 +11,15 @@ class Profile(models.Model):
 
     slug = models.SlugField()
     username = models.CharField(max_length=255, unique=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(primary_key=True)
     phone = models.CharField(max_length=10, unique=True)
     address = models.TextField()
 
     def __str__(self):
         return self.username
+    
+    class Meta:
+        verbose_name = "profile"
     
     @classmethod
     def generate_random_data(self): 
@@ -51,7 +54,17 @@ class Profile(models.Model):
             profiles.append(profile)
 
         Profile.objects.bulk_create(profiles)  
- 
+
+
+    def get_author_details(self):
+        profiles = Profile.objects.all()
+
+        ans = {}
+        for profile in profiles:
+            author = profile.profile_related.all()[0]
+            ans[author.name] = {'slug' : profile.slug, 'username' : profile.username, 'email' : profile.email, 'phone' : profile.phone, 'address' : profile.address}
+    
+        return ans
     
 
 
@@ -60,10 +73,13 @@ class Author(models.Model):
 
     slug = models.SlugField()
     name = models.CharField(max_length=255)
-    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name="profile")
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name="profile_related")
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        verbose_name = "author"
 
     @classmethod
     def generate_random_data(self):
@@ -148,13 +164,16 @@ class Author(models.Model):
 class Publisher(models.Model):
     
     slug = models.SlugField()
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     website = models.URLField(max_length=255)
     email = models.EmailField()
     address = models.TextField()
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        verbose_name = "publisher"
 
     @classmethod
     def generate_random_data(self):
@@ -239,12 +258,25 @@ class Publisher(models.Model):
 
 class Book(models.Model):
 
+    genre_choices = [
+        ('horror','horror'),
+        ('self help','self help'),
+        ('adventure','adventure'),
+        ('others','others')
+    ]
+
     slug = models.SlugField()
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="author_related")
     title = models.CharField(max_length=255)
     publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name="publisher_related")
     date_of_pub = models.DateTimeField(verbose_name="Published Date")
     is_deleted = models.BooleanField(default=False)
+    genre = models.CharField(max_length=100, default='horror', choices=genre_choices)
+
+    class Meta:
+        unique_together = ('author', 'title', 'date_of_pub')
+        ordering = ['date_of_pub']
+        verbose_name = 'book'
 
     def __str__(self):
         return self.title
@@ -324,6 +356,10 @@ class Collection(models.Model):
     slug = models.SlugField()
     name = models.CharField(max_length=255)
     book = models.ManyToManyField(Book)
+
+    class Meta:
+        verbose_name = "collection"
+        db_table = 'book_collection'
 
     def __str__(self):
         return self.name
