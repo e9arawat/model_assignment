@@ -2,15 +2,18 @@ from django.db import models
 import random
 from datetime import datetime, timedelta
 from django.shortcuts import get_object_or_404
+from faker import Faker
+from django.utils.text import slugify
+from django.db.models import Q
 
 
 # Create your models here.   
 
 
 class Profile(models.Model):
-
-    slug = models.SlugField()
+    
     username = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField()
     email = models.EmailField(primary_key=True)
     phone = models.CharField(max_length=10, unique=True)
     address = models.TextField()
@@ -23,34 +26,24 @@ class Profile(models.Model):
     
     @classmethod
     def generate_random_data(self): 
-        unique_datas = set()
-        slugs = []
-        usernames = []
-        emails = []
+        usernames = set()
         phones = set()
         addresses = set()
+        fake = Faker()
     
-        while len(unique_datas) < 50000:
-            unique_data = ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10))
-            unique_datas.add(unique_data)
-            
-        for username in unique_datas:
-            usernames.append(username)
-            emails.append(username + "@gmail.com")
-            slugs.append(username + "-slug")
+        while len(usernames) < 50000:
+            usernames.add(fake.user_name())
 
         while len(phones) < 50000:
-            phone = ''.join(random.choice('123456789') for _ in range(10))
-            phones.add(phone)
+            phones.add(f'+91 {fake.msisdn()[3:]}')
 
         while len(addresses) < 50000:
-            address = "H.No. " + random.choice('123456789') + ", " + ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10)) + ", India"
-            addresses.add(address)
+            addresses.add(fake.address())
 
         profiles = []
 
-        for slug, username, email, phone, address in zip(slugs, usernames, emails, phones, addresses):
-            profile = Profile(slug=slug, username=username, email=email, phone=phone, address=address)
+        for username, phone, address in zip(usernames, phones, addresses):
+            profile = Profile(slug=slugify(username), username=username, email=f'{username}@gmail.com', phone=phone, address=address)
             profiles.append(profile)
 
         Profile.objects.bulk_create(profiles)  
@@ -83,22 +76,16 @@ class Author(models.Model):
 
     @classmethod
     def generate_random_data(self):
-        unique_datas = set()
-        slugs = []
-        names = []
+        fake = Faker()
+        names = set()
         profiles = list(Profile.objects.all())
-        while len(unique_datas) < 50000:
-            unique_data = ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10))
-            unique_datas.add(unique_data)
 
-        for user in unique_datas:
-            names.append(user)
-            slugs.append(user + "-slug")
+        while len(names) < 50000:
+            names.add(fake.name())
 
         authors = []
-
-        for slug, name, profile in zip(slugs, names, profiles):
-            author = Author(slug=slug, name=name, profile=profile)
+        for name, profile in zip(names, profiles):
+            author = Author(slug=slugify(name), name=name, profile=profile)
             authors.append(author)
 
         Author.objects.bulk_create(authors) 
@@ -109,21 +96,11 @@ class Author(models.Model):
         authors = [x.name for x in all_data]
         return authors
 
-
-    # def get_author_details(self):
-    #     all_authors = Author.objects.all()
-    #     ans = []
-
-    #     for author in all_authors:
-    #         profile_data = author.profile.all()
-    #         ans.append({author.name : [profile_data.username, profile_data.email, profile_data.address]})
-
-    #     return ans
     
-    def get_all_books(self):
-        authors = Author.objects.all()
+    def get_all_books_startswith(self):
+        authors = Author.objects.filter(name__startswith = 'a')
 
-        return [author.author_related.all()[0].title for author in authors if author.name[0].lower() == 'a']
+        return [author.title for x in authors for author in x.author_related.all()]
 
 
     def get_author_book(self, author_name):
@@ -137,29 +114,35 @@ class Author(models.Model):
         ans = [author.name for author in authors if len(author.author_related.all()) > 1]
         return ans
     
-    def get_all_books(self):
-        authors = Author.objects.all()
+    def get_all_books_endswith(self):
+        authors = Author.objects.filter(name__endswith = 'a')
 
-        return [author.author_related.all()[0].title for author in authors if author.name[-1].lower() == 'a']
+        return [author.title for x in authors for author in x.author_related.all()]
     
     def get_profile_details(self, author_name):
-        author = Author.objects.get(name=author_name.lower())
-        
+        author = Author.objects.get(name__icontains=author_name)
         p = author.profile
         return [p.slug, p.username, p.email, p.phone, p.address]
         
     def get_author_books(self):
         authors = Author.objects.all()
         
-        ans = {author.name : [x.title for x in author.author_related.all()] for author in authors}
+        ans = {author.name : len(author.author_related.all()) for author in authors}
         
         return ans
     
     def get_books_except(self, author_name):
-        authors = Author.objects.exclude(name = author_name)
+        authors = Author.objects.exclude(name__iexact = author_name)
         
         ans = [x.title for author in authors for x in author.author_related.all()]
         return ans
+    
+
+    def author_books(self, author_A, author_B):
+        authors =  Author.objects.filter(Q(author__name__iexact=author_A) | Q(author__name__iexact=author_B))
+
+        return [x.title for author in authors for x in author.author_related.all()]
+
 
 class Publisher(models.Model):
     
@@ -177,33 +160,24 @@ class Publisher(models.Model):
 
     @classmethod
     def generate_random_data(self):
-
-        unique_datas = set()
-        slugs = []
-        names = []
-        websites = []
-        emails = []
+        fake = Faker()
+        names = set()
+        websites = set()
         addresses = set()
 
-        while len(unique_datas) < 50000:
-            unique_data = ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10))
-            unique_datas.add(unique_data)
-
-
-        for user in unique_datas:
-            names.append(user)
-            slugs.append(user + "-slug")
-            websites.append("www." + user + ".com")
-            emails.append(user + "@gmail.com")
+        while len(names) < 50000:
+            names.add(fake.company())
 
         while len(addresses) < 50000:
-            address = "H.No. " + random.choice('123456789') + ", " + ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10)) + ", India"
-            addresses.add(address)
+            addresses.add(fake.address())
+
+        while len(websites) < 50000:
+            websites.add(fake.url())
 
         publishers = []
 
-        for slug, name, website, email, address in zip(slugs, names, websites, emails, addresses):
-            publisher = Publisher(slug=slug, name=name, website=website, email=email, address=address)
+        for name, website, address in zip(names, websites, addresses):
+            publisher = Publisher(slug=slugify(name), name=name, website=website, email=f'{name.replace(" ", "")}@{fake.domain_name()}', address=address)
             publishers.append(publisher)
 
         Publisher.objects.bulk_create(publishers)
@@ -269,9 +243,9 @@ class Book(models.Model):
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="author_related")
     title = models.CharField(max_length=255)
     publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name="publisher_related")
-    date_of_pub = models.DateTimeField(verbose_name="Published Date")
+    date_of_pub = models.DateField(verbose_name="Published Date")
     is_deleted = models.BooleanField(default=False)
-    genre = models.CharField(max_length=100, default='horror', choices=genre_choices)
+    genre = models.CharField(max_length=100, default='others', choices=genre_choices)
 
     class Meta:
         unique_together = ('author', 'title', 'date_of_pub')
@@ -283,31 +257,28 @@ class Book(models.Model):
     
 
     def generate_random_data(self):
-
-        slugs = set()
+        fake = Faker()
         authors = Author.objects.all()
         titles = set()
-        publishers = set(Publisher.objects.all())
+        publishers = Publisher.objects.all()
         date_of_pubs = set()
 
-        while len(slugs) < 50000:
-            slug = "".join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10)) 
-            slugs.add(slug)
-
         while len(titles) < 50000:
-            title = "".join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10)) 
-            titles.add(title)
+            titles.add(fake.sentence(nb_words=3))
+
+        # while len(date_of_pubs) < 50000:
+        #     date_of_pubs.add(datetime.date(fake.date()))
+
 
         while len(date_of_pubs) < 50000:
-            start_date = datetime.now() - timedelta(days=random.randint(1, 3650)) 
-            end_date = datetime.now() 
-            date_of_pub = start_date + (end_date - start_date) * random.random()
-            date_of_pubs.add(date_of_pub)
+            start_date = datetime.now() - timedelta(days=random.randint(1, 10000)) 
+            
+            date_of_pubs.add(start_date)
 
         books = []
 
-        for slug, title, publisher, date_of_pub in zip(slugs, titles, publishers, date_of_pubs):
-            book = Book(slug=slug, author=random.choice(authors), title=title, publisher=publisher, date_of_pub=date_of_pub)
+        for title, date_of_pub in zip(titles, date_of_pubs):
+            book = Book(slug=slugify(title), author=random.choice(authors), title=title, publisher=random.choice(publishers), date_of_pub=date_of_pub)
             books.append(book)
 
         Book.objects.bulk_create(books)
@@ -319,9 +290,9 @@ class Book(models.Model):
         return ans
             
     def get_year_books(self, input_year):
-        books = Book.objects.all()
+        books = Book.objects.filter(date_of_pub__year = input_year)
 
-        ans = [book.title for book in books if book.date_of_pub.year == input_year]
+        ans = [book.title for book in books]
         return ans
     
     def get_status(self, *args):
@@ -369,25 +340,18 @@ class Collection(models.Model):
 
     def generate_random_data(self):
 
-        unique_datas = set()
-        slugs = []
-        names = []
+        fake = Faker()
+        names = set()
         books = Book.objects.all()
         
 
-        while len(unique_datas) < 50000:
-            unique_data = ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(10))
-            unique_datas.add(unique_data)
-
-
-        for user in unique_datas:
-            names.append(user)
-            slugs.append(user + "-slug")
+        while len(names) < 50000:
+            names.add(fake.sentence(nb_words=2))
 
         collections = []
 
-        for slug, name in zip(slugs, names):
-            collection = Collection(slug=slug, name=name)
+        for name in names:
+            collection = Collection(slug=slugify(name), name=name)
             collection.save()
             collection.book.set([random.choice(books)])
             collections.append(collection)
