@@ -1,6 +1,7 @@
 from django.db import models
 import random
 from datetime import datetime, timedelta
+from django.shortcuts import get_object_or_404
 
 
 # Create your models here.   
@@ -243,6 +244,7 @@ class Book(models.Model):
     title = models.CharField(max_length=255)
     publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE, related_name="publisher_related")
     date_of_pub = models.DateTimeField(verbose_name="Published Date")
+    is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title
@@ -302,7 +304,18 @@ class Book(models.Model):
         return [book, created]
     
     
+    def delete_book(self, book_title):
+        book = get_object_or_404(Book, title=book_title)
+        book.delete()
+        return "Deleted"
+    
+    def soft_delete_book(self, book_id):
+        book = get_object_or_404(Book, id=book_id)
         
+        book.is_deleted = True
+        book.save()
+        
+        return "Soft deleted successfully"
 
 
 class Collection(models.Model):
